@@ -1,7 +1,7 @@
 import os
 import logging
 from datetime import datetime
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
@@ -43,7 +43,8 @@ def create_app():
         logger.info("Database connection established successfully")
     except ServerSelectionTimeoutError as e:
         logger.error(f"Failed to connect to MongoDB: {e}")
-        raise Exception("Database connection failed")
+        logger.warning("Starting server without database connection for documentation access")
+        app.config["task_service"] = None
     
     # Health check endpoint
     @app.route('/health', methods=['GET'])
@@ -71,6 +72,15 @@ def create_app():
     def status():
         try:
             task_service = app.config["task_service"]
+            if task_service is None:
+                return jsonify({
+                    'service': 'Task Tracker API',
+                    'status': 'running',
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'uptime': 'Available',
+                    'total_tasks': 'N/A - Database not connected',
+                    'version': '1.0.0'
+                }), 200
             total_tasks = len(task_service.repository.get_all())
             return jsonify({
                 'service': 'Task Tracker API',
